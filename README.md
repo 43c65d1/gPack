@@ -1,70 +1,103 @@
-# Automatically-bundling-codes-and-data.
+# gPack - 出题数据与代码自动打包工具
 
-I'm just want to do somthing at my coding life.
+本脚本用于快速打包竞赛题目所需的数据文件（`.in`/`.out`）和源代码（`std.cpp`、`gen.cpp`、`validator.cpp` 等），生成两个规范命名的 ZIP 压缩包，方便归档或分发。
 
-这其实没什么好看的，只是改了一下AI的代码（不改实在跑不了）
+## 主要功能
 
-主要是用来方便我出题的（
+- **数据包（`0_Data_日期.zip`）**：递归收集当前目录下所有 `.in` / `.out` 文件，**扁平化**（不保留子目录结构）打包成一个 ZIP。
+- **代码包（`0_std_日期.zip`）**：
+  - 将 `std.cpp`、`gen.cpp`、`val.cpp`、`Problem.md` 放入 `std/` 子目录。
+  - 将所有 `.in` / `.out` 文件放入 `data/` 子目录（可通过 `-d` 参数跳过数据文件）。
+  - 可选包含 `spj.cpp`（需加 `-s` 开关）。
+- **额外文件支持**：通过 `-i` 参数可添加任意文件或目录（支持通配符），并灵活指定放入 `std/`、`data/` 或两者。
+- **自定义后缀**：使用 `-N` 参数为 ZIP 文件名添加自定义后缀（如 `_final`）。
+- 所有生成的 ZIP 文件保存在当前目录下的 **`Zips/`** 文件夹中。
 
-打包俩ZIP 一个 0\_std\_*DAYTime\_now*.zip , 一个0\_data\_*DAYTime\_now*.zip
+## 使用方法
 
-0_std_*.zip 会找 std.cpp、gen.cpp、validator.cpp 打包到 std 文件夹里，然后 把所有的 .in/.out 打到 data 文件夹里。
+```powershell
+.\gPack.ps1 [-s] [-d] [-i "路径 [选项]"] [-N "后缀"]
+```
 
-0_data_*.zip 就只包含 *.in/.out 。
+### 参数说明
 
-结构大概长这个样：
+| 参数 | 说明 |
+|------|------|
+| `-s` | 包含 `spj.cpp`（默认不包含） |
+| `-d` | 仅打包 `std/` 目录，生成的 `0_std_*.zip` 中**不包含** `data/` 子目录 |
+| `-i` | 额外包含的文件或目录（支持通配符）。可在路径后附加选项（空格分隔）：<br> • 无选项 或 `s` → 放入 `std/`<br> • `d` → 放入 `data/`<br> • `sd` 或 `ds` → 同时放入 `std/` 和 `data/`<br>示例：`-i "docs\*.pdf s" -i "extra\*.in d"` |
+| `-N` | 自定义文件名后缀，附加在日期之后，如 `-N "v2"` 生成 `0_Data_20241101_v2.zip` |
+
+## 使用示例
+
+```powershell
+# 基础打包（不含 spj.cpp，同时生成数据包和代码包）
+.\gPack.ps1
+
+# 包含 spj.cpp
+.\gPack.ps1 -s
+
+# 只生成代码包（不含 data/ 子目录）
+.\gPack.ps1 -d
+
+# 额外包含 README.md 到 std/，所有 .txt 到 std/，以及外部 .ans 文件到 data/
+.\gPack.ps1 -i "README.md" -i "*.txt s" -i "C:\data\*.ans d"
+
+# 同时包含 spj.cpp，并为 ZIP 文件添加后缀 "final"
+.\gPack.ps1 -s -N "final"
+```
+
+## 输出结构示例
 
 ```
-├── GP.bat
+当前目录/
+├── gPack.ps1
+├── std.cpp
+├── gen.cpp
+├── val.cpp
+├── Problem.md
+├── spj.cpp (可选)
+├── 1.in, 1.out, 2.in, 2.out ...
 └── Zips/
-    ├── 0_std_20231025.zip
-    │   ├── std/
-    │   │   ├── std.cpp
-    │   │   ├── gen.cpp
-    │   │   └── validator.cpp
-    │   └── data/
-    │       ├── 1.in
-    │       └── 1.out
-    └── 0_Data_20231025.zip
-        ├── test1.in
-        └── test1.out
+    ├── 0_Data_20231025.zip
+    │   ├── 1.in
+    │   ├── 1.out
+    │   ├── 2.in
+    │   └── 2.out
+    └── 0_std_20231025.zip
+        ├── std/
+        │   ├── std.cpp
+        │   ├── gen.cpp
+        │   ├── val.cpp
+        │   ├── Problem.md
+        │   └── spj.cpp (如果使用 -s)
+        └── data/
+            ├── 1.in
+            ├── 1.out
+            ├── 2.in
+            └── 2.out
 ```
 
+## 注意事项
 
-.SYNOPSIS
-    打包 .in/.out 数据文件和 .cpp 源代码文件为 ZIP 压缩包，支持包含额外文件。
-.DESCRIPTION
-    基于当前目录递归查找所有 .in/.out 文件，生成扁平结构的 0_Data_日期[_后缀].zip；
-    同时打包 std.cpp, gen.cpp, validator.cpp（可选 spj.cpp）到 0_std_日期[_后缀].zip 的 std/ 子目录，
-    并将 .in/.out 文件复制到 data/ 子目录（除非使用 -d 参数）。
-    新增 -i 参数可额外指定文件或目录（支持通配符），并可选择放入 std/、data/ 或两者。
-    新增 -N 参数可自定义 ZIP 文件名后缀（例如 -N "v2" 将生成 0_Data_20241101_v2.zip）。
-    所有 ZIP 文件保存在当前目录下的 Zips 文件夹中。
-.PARAMETER s
-    包含 spj.cpp 文件（默认排除）。
-.PARAMETER d
-    仅打包 std 目录（即只包含 .cpp 文件，不包含 data 子目录）。
-.PARAMETER i
-    额外包含的文件或目录，支持通配符。可在路径后附加选项（用空格分隔）：
-        无选项：默认放入 std/
-        s     ：放入 std/
-        d     ：放入 data/
-        sd/ds ：同时放入 std/ 和 data/
-    例如：-i "docs\*.pdf s" -i "images\logo.png" -i "extra\*.in d" -i "tools\checker.exe sd"
-.PARAMETER N
-    自定义 ZIP 文件名后缀（字符串），将附加在日期之后，如 "v2"。
-.EXAMPLE
-    .\gPack.ps1                             # 普通打包
-    .\gPack.ps1 -s                          # 包含 spj.cpp
-    .\gPack.ps1 -d                          # 仅打包 std 目录
-    .\gPack.ps1 -i "README.md" -i "*.txt s" # 额外包含 README.md 到 std，所有 .txt 到 std
-    .\gPack.ps1 -i "C:\data\*.ans d" -s     # 包含外部 .ans 文件到 data，并包含 spj.cpp
-    .\gPack.ps1 -N "final"                  # 生成带 "_final" 后缀的 ZIP 文件
+1. **文件名冲突**：由于数据文件会被**扁平化**（所有文件直接放入 ZIP 根目录或 `data/` 目录），如果不同子目录中存在同名文件，后复制的文件会覆盖先前的文件。请确保数据文件名称唯一。
+2. **默认包含的文件**：
+   - 源代码：`std.cpp`, `gen.cpp`, `val.cpp`, `Problem.md`（以及可选的 `spj.cpp`）
+   - 数据文件：所有 `.in` / `.out` 文件（递归查找）
+3. **输出目录**：`Zips/` 文件夹会自动创建，若已存在则直接使用。
+4. **权限要求**：脚本会在系统临时目录中创建临时文件夹用于打包，需要写入权限。
 
+## 依赖环境
 
-param(
-    [switch]$s,                     # 包含 spj.cpp
-    [switch]$d,                     # 仅打包 std 目录（不包含 data）
-    [string[]]$i,                   # 额外包含的文件/目录列表，可带选项
-    [string]$N                      # ZIP 文件名后缀
-)
+- Windows PowerShell 5.0 或更高版本（内置 `Compress-Archive` cmdlet）
+- 无需额外安装模块
+
+## 更新日志
+
+- **重构版本**：新增 `-i` 和 `-N` 参数，支持灵活添加外部文件，文件名可自定义后缀。
+- 默认包含 `Problem.md`。
+- 修复了旧版中的若干路径处理问题。
+
+---
+
+如需更多帮助，请运行 `Get-Help .\gPack.ps1 -Detailed`。
