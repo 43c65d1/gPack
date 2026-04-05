@@ -12,6 +12,7 @@
 - **额外文件**：用 `-i`（std 与 data 各一份）、`-is`（仅 std）、`-id`（仅 data）指定；支持通配符，并用 **`源路径>目标相对路径`** 控制 ZIP 内路径（目标相对于 `std/` 或 `data/`）。**默认不把目录当成“整棵递归打进包”**：遇到目录会跳过，需用通配符显式匹配文件。
 - **自定义后缀**：`-n` / `-Name` 在时间戳**之后**追加一段，例如 `_final`。
 - **时间戳**：`yyyyMMdd_HHmmss`，同一天多次打包文件名不同；按文件名排序即大致按打包时间先后。
+- **压缩**：若环境中有 7-Zip（`7z`），优先用其生成 `.zip`；否则使用 `Compress-Archive`。
 - 所有生成的 ZIP 保存在当前目录下的 **`Zips/`** 中。
 
 ## 使用方法
@@ -103,11 +104,13 @@
 ## 依赖环境
 
 - Windows PowerShell 5.0 或更高版本（`Compress-Archive`）
-- 无需额外模块
+- **可选**：安装 [7-Zip](https://www.7-zip.org/) 或将 `7z.exe` 加入 PATH；检测到 `7z` 时优先用其打 ZIP，失败则回退到 `Compress-Archive`
+- 无需额外 PowerShell 模块
 
 ## 更新日志
 
 - **当前版本**：ZIP 名使用 `yyyyMMdd_HHmmss`；`-ed` 排除结构化包中的 `data/`；额外文件拆分为 `-i` / `-is` / `-id`，支持 `源>目标` 与目录尾部分隔符。
+- 若存在 7-Zip（`7z` / 常见安装路径），优先用 7z 压缩；否则使用内置 `Compress-Archive`。
 - 默认包含 `Problem.md`；校验器文件名为 `val.cpp`。
 - 对 `.Count` 与 `foreach` 使用 `@()` 做防御性处理。
 

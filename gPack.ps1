@@ -11,6 +11,7 @@
     默认不递归目录（目录被忽略，请使用显式通配符匹配其文件）。
 
     新增 -Name / -n 参数可自定义 ZIP 文件名后缀（例如 -n "v2" 将生成 0_Data_20241101_143052_v2.zip）。
+    若系统 PATH 或 Program Files 下存在 7-Zip（7z.exe），优先用其生成 .zip；否则使用 Compress-Archive。
     所有 ZIP 文件保存在当前目录下的 Zips 文件夹中。
 .PARAMETER spj
     包含 spj.cpp 文件（默认排除）。短选项 -s，长选项 -spj。
@@ -72,6 +73,54 @@ if (-not (Test-Path $outputDir)) {
         Write-Host "[ERROR] Failed to create directory: $outputDir"
         exit 1
     }
+}
+
+function Get-7ZipExecutablePath {
+    $fromPath = Get-Command 7z -ErrorAction SilentlyContinue
+    if ($fromPath -and $fromPath.Source -and (Test-Path -LiteralPath $fromPath.Source)) {
+        return $fromPath.Source
+    }
+    foreach ($p in @(
+            (Join-Path $env:ProgramFiles '7-Zip\7z.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} '7-Zip\7z.exe')
+        )) {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $p }
+    }
+    return $null
+}
+
+# 将目录下顶层内容打成 ZIP（与 Compress-Archive -Path (Join-Path $dir '*') 布局一致）；有 7z 则优先使用
+function New-ZipFromDirectoryContents {
+    param(
+        [string]$SourceDirectory,
+        [string]$ZipFilePath,
+        [string]$SevenZipPath
+    )
+    if (Test-Path -LiteralPath $ZipFilePath) {
+        Remove-Item -LiteralPath $ZipFilePath -Force
+    }
+    if ($SevenZipPath) {
+        $argList = @('a', '-tzip', '-mx=9', '-bd', $ZipFilePath, '*', '-r')
+        $p = Start-Process -FilePath $SevenZipPath -ArgumentList $argList -Wait -PassThru -NoNewWindow -WorkingDirectory $SourceDirectory
+        $code = $p.ExitCode
+        $sevenZipOk = (Test-Path -LiteralPath $ZipFilePath) -and ($code -lt 2)
+        if (-not $sevenZipOk) {
+            if (Test-Path -LiteralPath $ZipFilePath) {
+                Remove-Item -LiteralPath $ZipFilePath -Force -ErrorAction SilentlyContinue
+            }
+            Write-Warning "7-Zip failed or incomplete (exit $code); falling back to Compress-Archive"
+            Compress-Archive -Path (Join-Path $SourceDirectory '*') -DestinationPath $ZipFilePath -Force
+        }
+    } else {
+        Compress-Archive -Path (Join-Path $SourceDirectory '*') -DestinationPath $ZipFilePath -Force
+    }
+}
+
+$sevenZipExe = Get-7ZipExecutablePath
+if ($sevenZipExe) {
+    Write-Host "[INFO] Using 7-Zip: $sevenZipExe"
+} else {
+    Write-Host "[INFO] 7-Zip not found; using Compress-Archive"
 }
 
 # ---------- 初始化文件列表 ----------
@@ -231,7 +280,7 @@ if (@($dataEntries).Count -gt 0) {
             }
             Copy-Item -Path $entry.Source -Destination $targetPath -Force
         }
-        Compress-Archive -Path (Join-Path $tempDataDir '*') -DestinationPath $dataZipPath -Force
+        New-ZipFromDirectoryContents -SourceDirectory $tempDataDir -ZipFilePath $dataZipPath -SevenZipPath $sevenZipExe
         Write-Host "[OK] Data ZIP created: $dataZipPath"
     } finally {
         Remove-Item -Path $tempDataDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -276,7 +325,7 @@ try {
     
     $allItems = @(Get-ChildItem $tempStdDir -Recurse -ErrorAction SilentlyContinue)
     if (@($allItems).Count -gt 0) {
-        Compress-Archive -Path (Join-Path $tempStdDir '*') -DestinationPath $stdZipPath -Force
+        New-ZipFromDirectoryContents -SourceDirectory $tempStdDir -ZipFilePath $stdZipPath -SevenZipPath $sevenZipExe
         Write-Host "[OK] Structured ZIP created: $stdZipPath"
     } else {
         Write-Host "[WARN] No files for Structured ZIP (0_std_*.zip not created)"
