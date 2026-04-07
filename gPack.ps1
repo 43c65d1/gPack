@@ -12,7 +12,7 @@
 
     新增 -Name / -n 参数可自定义 ZIP 文件名后缀（例如 -n "v2" 将生成 0_Data_20241101_143052_v2.zip）。
     若系统 PATH 或 Program Files 下存在 7-Zip（7z.exe），优先用其生成 .zip；否则使用 Compress-Archive。
-    所有 ZIP 文件保存在当前目录下的 Zips 文件夹中。
+    所有 ZIP 文件保存在当前目录下的 zips 文件夹中。
 .PARAMETER spj
     包含 spj.cpp 文件（默认排除）。短选项 -s，长选项 -spj。
 .PARAMETER ExcludeData
@@ -62,8 +62,8 @@ $zipStamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 # 生成后缀字符串（若指定则带下划线，否则为空）
 $suffix = if ($Name) { "_$Name" } else { "" }
 
-# 输出目录：当前目录下的 Zips
-$outputDir = Join-Path $PWD.Path 'Zips'
+# 输出目录：当前目录下的 zips
+$outputDir = Join-Path $PWD.Path 'zips'
 # 创建输出目录（如果不存在）
 if (-not (Test-Path $outputDir)) {
     try {
